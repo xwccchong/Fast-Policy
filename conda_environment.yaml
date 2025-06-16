@@ -1,4 +1,4 @@
-name: robodiff
+name: faster_diffusion_policy
 channels:
   - pytorch
   - pytorch3d

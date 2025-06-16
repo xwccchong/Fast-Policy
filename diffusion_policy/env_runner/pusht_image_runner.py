@@ -1,4 +1,5 @@
 import wandb
+import os
 import numpy as np
 import torch
 import collections
@@ -6,7 +7,10 @@ import pathlib
 import tqdm
 import dill
 import math
+import time
+import pdb
 import wandb.sdk.data_types.video as wv
+import matplotlib.pyplot as plt
 from diffusion_policy.env.pusht.pusht_image_env import PushTImageEnv
 from diffusion_policy.gym_util.async_vector_env import AsyncVectorEnv
 # from diffusion_policy.gym_util.sync_vector_env import SyncVectorEnv
@@ -16,6 +20,7 @@ from diffusion_policy.gym_util.video_recording_wrapper import VideoRecordingWrap
 from diffusion_policy.policy.base_image_policy import BaseImagePolicy
 from diffusion_policy.common.pytorch_util import dict_apply
 from diffusion_policy.env_runner.base_image_runner import BaseImageRunner
+
 
 class PushTImageRunner(BaseImageRunner):
     def __init__(self,
@@ -31,7 +36,7 @@ class PushTImageRunner(BaseImageRunner):
             n_obs_steps=8,
             n_action_steps=8,
             fps=10,
-            crf=22,
+            crf=16,
             render_size=96,
             past_action=False,
             tqdm_interval_sec=5.0,
@@ -156,6 +161,10 @@ class PushTImageRunner(BaseImageRunner):
         all_video_paths = [None] * n_inits
         all_rewards = [None] * n_inits
 
+        total_time = 0
+        count = 0
+        time_list = []
+        # pdb.set_trace()
         for chunk_idx in range(n_chunks):
             start = chunk_idx * n_envs
             end = min(n_inits, start + n_envs)
@@ -195,20 +204,53 @@ class PushTImageRunner(BaseImageRunner):
                         device=device))
 
                 # run policy
+                noise_mse = []
+                noise_mse_inject = []
                 with torch.no_grad():
-                    action_dict = policy.predict_action(obs_dict)
+                    start_time = time.time()
+                    # pdb.set_trace()
+                    # action_dict= policy.predict_action(obs_dict) 
+                    action_dict= policy.faster_encoder_predict_action(obs_dict) # encoder reuse
+                    # action_dict= policy.faster_edm_predict_action(obs_dict) # edm
+                    t_faster = time.time() - start_time
+                    time_list.append(t_faster)
+                    total_time += t_faster
+                    count +=1
+                
+                if len(noise_mse) != 0 and len(noise_mse_inject) != 0:
+                    plt.figure()
+                    plt.grid(True)
+                    plt.plot(noise_mse, marker='o', markersize=8, linewidth=2, markerfacecolor='red') 
+                    plt.plot(noise_mse_inject, marker='o', markersize=8, linewidth=2, markerfacecolor='green')
+                    plt.title('noise_delta between time steps') 
+                    # plt.ylim(0, 0.3)
+                    plt.xlabel('denoise time step')
+                    plt.ylabel('noise_delta')
+                    # plt.legend()
+                    file_path = './data/noise_delta'
+                    os.makedirs(file_path,  exist_ok=True)
+                    filename = os.path.join(file_path, f'noise_delta_ddim_10_{count}.png')
+                    plt.savefig(filename)
+                    plt.clf()
+                    # plt.savefig('fearture_delta_ddpm.png')
+                    plt.close() 
 
                 # device_transfer
                 np_action_dict = dict_apply(action_dict,
                     lambda x: x.detach().to('cpu').numpy())
-
                 action = np_action_dict['action']
-
+                
+                # trajectory visualization
+                # taks_name = 'pusht'
+                # file_path = f'./data/{taks_name}_eval_output/feature/'
+                # feature_visual_block(action[0], count, file_path, 'scatter')
+                
                 # step env
                 obs, reward, done, info = env.step(action)
                 done = np.all(done)
                 past_action = action
 
+                # done = True
                 # update pbar
                 pbar.update(action.shape[1])
             pbar.close()
@@ -247,5 +289,11 @@ class PushTImageRunner(BaseImageRunner):
             name = prefix+'mean_score'
             value = np.mean(value)
             log_data[name] = value
+        
+        # log_data['inference_time'] = total_time / count
+        # log_data['inference_time'] = np.mean(time_list[1:])
+        log_data['inference_time'] = np.mean(time_list)
+        
+        log_data['time_list'] = time_list
 
         return log_data

@@ -6,6 +6,7 @@ import pathlib
 import tqdm
 import dill
 import math
+import time
 import wandb.sdk.data_types.video as wv
 from diffusion_policy.env.pusht.pusht_keypoints_env import PushTKeypointsEnv
 from diffusion_policy.gym_util.async_vector_env import AsyncVectorEnv
@@ -171,6 +172,8 @@ class PushTKeypointsRunner(BaseLowdimRunner):
         all_video_paths = [None] * n_inits
         all_rewards = [None] * n_inits
 
+        total_time = 0
+        count = 0
         for chunk_idx in range(n_chunks):
             start = chunk_idx * n_envs
             end = min(n_inits, start + n_envs)
@@ -216,7 +219,13 @@ class PushTKeypointsRunner(BaseLowdimRunner):
 
                 # run policy
                 with torch.no_grad():
-                    action_dict = policy.predict_action(obs_dict)
+                    # action_dict = policy.predict_action(obs_dict)
+                    start_time = time.time()
+                    # action_dict = policy.predict_action(obs_dict) # 使用加速的来进行评估
+                    action_dict = policy.faster_predict_action(obs_dict)
+                    t_faster = time.time() - start_time
+                    total_time += t_faster
+                    count +=1
 
                 # device_transfer
                 np_action_dict = dict_apply(action_dict,
@@ -269,5 +278,7 @@ class PushTKeypointsRunner(BaseLowdimRunner):
             name = prefix+'mean_score'
             value = np.mean(value)
             log_data[name] = value
+
+        log_data['inference_time'] = total_time / count
 
         return log_data

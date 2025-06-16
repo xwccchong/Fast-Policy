@@ -4,6 +4,9 @@ Training:
 python train.py --config-name=train_diffusion_lowdim_workspace
 """
 
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 import sys
 # use line-buffering for both stdout and stderr
 sys.stdout = open(sys.stdout.fileno(), mode='w', buffering=1)
@@ -26,10 +29,11 @@ def main(cfg: OmegaConf):
     # resolve immediately so all the ${now:} resolvers
     # will use the same time.
     OmegaConf.resolve(cfg)
-
+    
     cls = hydra.utils.get_class(cfg._target_)
     workspace: BaseWorkspace = cls(cfg)
     workspace.run()
 
 if __name__ == "__main__":
     main()
+    

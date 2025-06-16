@@ -14,9 +14,14 @@ class BaseWorkspace:
     include_keys = tuple()
     exclude_keys = tuple()
 
+
     def __init__(self, cfg: OmegaConf, output_dir: Optional[str]=None):
+        print("You are using the CTM base workspace! Ensure that you don't wish to use the normal DP base workspace.")
+
         self.cfg = cfg
         self._output_dir = output_dir
+        if cfg.training.output_dir != "None":
+            self._output_dir = cfg.training.output_dir
         self._saving_thread = None
 
     @property
@@ -28,7 +33,7 @@ class BaseWorkspace:
     
     def run(self):
         """
-        Create any resource shouldn't be serialized as local variables
+        Create any resource that shouldn't be serialized as local variables
         """
         pass
 
@@ -71,35 +76,50 @@ class BaseWorkspace:
         return str(path.absolute())
     
     def get_checkpoint_path(self, tag='latest'):
-        print(self.output_dir)
         return pathlib.Path(self.output_dir).joinpath('checkpoints', f'{tag}.ckpt')
 
-    def load_payload(self, payload, exclude_keys=None, include_keys=None, **kwargs):
+
+    
+    def load_payload(self, payload, exclude_keys=None, include_keys=None, strict=True, update_dict_dim=None, **kwargs):
         if exclude_keys is None:
             exclude_keys = tuple()
         if include_keys is None:
             include_keys = payload['pickles'].keys()
+        if include_keys == "EDM":
+            include_keys = tuple()
+
 
         for key, value in payload['state_dicts'].items():
             if key not in exclude_keys:
-                self.__dict__[key].load_state_dict(value, **kwargs)
+                if key == "model" and update_dict_dim is not None:
+                    dsed = update_dict_dim
+                    for k, v in value.items():
+                        b = v.shape[0]
+                        if "cond_encoder.1.weight" in k:
+                            v = torch.cat([v[:, :dsed], torch.zeros([b, dsed]), v[:, dsed:]], dim = -1)
+                            value[k] = v
+                try:
+                    self.__dict__[key].load_state_dict(value, strict=strict, **kwargs)
+                except:
+                    print("Failed to load strict state dict for key: ", key)
+                    self.__dict__[key].load_state_dict(value, **kwargs)
         for key in include_keys:
+            print(key)
             if key in payload['pickles']:
                 self.__dict__[key] = dill.loads(payload['pickles'][key])
     
     def load_checkpoint(self, path=None, tag='latest',
             exclude_keys=None, 
-            include_keys=None, 
+            include_keys=None, strict=True, update_dict_dim=None,
             **kwargs):
         if path is None:
             path = self.get_checkpoint_path(tag=tag)
         else:
             path = pathlib.Path(path)
         payload = torch.load(path.open('rb'), pickle_module=dill, **kwargs)
-        
         self.load_payload(payload, 
             exclude_keys=exclude_keys, 
-            include_keys=include_keys)
+            include_keys=include_keys, update_dict_dim=update_dict_dim, strict=strict)
         return payload
     
     @classmethod
@@ -131,6 +151,11 @@ class BaseWorkspace:
     @classmethod
     def create_from_snapshot(cls, path):
         return torch.load(open(path, 'rb'), pickle_module=dill)
+
+    @output_dir.setter
+    def output_dir(self, value):
+        self._output_dir = value
+
 
 
 def _copy_to_cpu(x):

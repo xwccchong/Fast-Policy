@@ -1,13 +1,16 @@
 import os
 import wandb
+import pdb
 import numpy as np
 import torch
+import time
 import collections
 import pathlib
 import tqdm
 import h5py
 import math
 import dill
+import matplotlib.pyplot as plt
 import wandb.sdk.data_types.video as wv
 from diffusion_policy.gym_util.async_vector_env import AsyncVectorEnv
 from diffusion_policy.gym_util.sync_vector_env import SyncVectorEnv
@@ -18,25 +21,11 @@ from diffusion_policy.model.common.rotation_transformer import RotationTransform
 from diffusion_policy.policy.base_image_policy import BaseImagePolicy
 from diffusion_policy.common.pytorch_util import dict_apply
 from diffusion_policy.env_runner.base_image_runner import BaseImageRunner
-from diffusion_policy.env.robomimic.robomimic_image_wrapper import RobomimicImageWrapper
+from diffusion_policy.env.robomimic.robomimic_image_wrapper import RobomimicImageWrapper # 这个库引用出问题了
 import robomimic.utils.file_utils as FileUtils
 import robomimic.utils.env_utils as EnvUtils
 import robomimic.utils.obs_utils as ObsUtils
-
-
-def create_env(env_meta, shape_meta, enable_render=True):
-    modality_mapping = collections.defaultdict(list)
-    for key, attr in shape_meta['obs'].items():
-        modality_mapping[attr.get('type', 'low_dim')].append(key)
-    ObsUtils.initialize_obs_modality_mapping_from_dict(modality_mapping)
-
-    env = EnvUtils.create_env_from_metadata(
-        env_meta=env_meta,
-        render=False, 
-        render_offscreen=enable_render,
-        use_image_obs=enable_render, 
-    )
-    return env
+from feature_analyse.feature_utils import feature_visual,feature_visual_block
 
 
 class RobomimicImageRunner(BaseImageRunner):
@@ -52,14 +41,14 @@ class RobomimicImageRunner(BaseImageRunner):
             n_train_vis=3,
             train_start_idx=0,
             n_test=22,
-            n_test_vis=6,
+            n_test_vis=16,
             test_start_seed=10000,
             max_steps=400,
             n_obs_steps=2,
             n_action_steps=8,
             render_obs_key='agentview_image',
             fps=10,
-            crf=22,
+            crf=10,
             past_action=False,
             abs_action=False,
             tqdm_interval_sec=5.0,
@@ -102,14 +91,18 @@ class RobomimicImageRunner(BaseImageRunner):
                         shape_meta=shape_meta,
                         init_state=None,
                         render_obs_key=render_obs_key
+                        # render_obs_key="shouldercamera0_image"
                     ),
                     video_recoder=VideoRecorder.create_h264(
                         fps=fps,
                         codec='h264',
                         input_pix_fmt='rgb24',
-                        crf=crf,
+                        # crf=crf,
+                        crf=2,
                         thread_type='FRAME',
-                        thread_count=1
+                        thread_count=1,
+                        width=240,  
+                        height=240
                     ),
                     file_path=None,
                     steps_per_render=steps_per_render
@@ -136,14 +129,16 @@ class RobomimicImageRunner(BaseImageRunner):
                         shape_meta=shape_meta,
                         init_state=None,
                         render_obs_key=render_obs_key
+                        # render_obs_key="shouldercamera0_image"
                     ),
                     video_recoder=VideoRecorder.create_h264(
                         fps=fps,
                         codec='h264',
                         input_pix_fmt='rgb24',
-                        crf=crf,
+                        # crf=crf,
+                        crf=22,
                         thread_type='FRAME',
-                        thread_count=1
+                        thread_count=1,
                     ),
                     file_path=None,
                     steps_per_render=steps_per_render
@@ -249,6 +244,10 @@ class RobomimicImageRunner(BaseImageRunner):
         all_video_paths = [None] * n_inits
         all_rewards = [None] * n_inits
 
+        total_time = 0
+        count = 0
+        time_list = []
+        # pdb.set_trace()
         for chunk_idx in range(n_chunks):
             start = chunk_idx * n_envs
             end = min(n_inits, start + n_envs)
@@ -290,8 +289,37 @@ class RobomimicImageRunner(BaseImageRunner):
                         device=device))
 
                 # run policy
+                noise_mse = []
+                noise_mse_inject = []
                 with torch.no_grad():
-                    action_dict = policy.predict_action(obs_dict)
+                    start_time = time.time()
+                    action_dict= policy.predict_action(obs_dict) 
+                    # action_dict= policy.faster_encoder_predict_action(obs_dict) # encoder reuse
+                    # action_dict= policy.faster_edm_predict_action(obs_dict) # edm 
+                    t_faster = time.time() - start_time
+                    time_list.append(t_faster)
+                    total_time += t_faster
+                    count +=1
+                 
+                if len(noise_mse) != 0 and len(noise_mse_inject) != 0:
+                    plt.figure()
+                    plt.grid(True)
+                    # 创建直方图 
+                    plt.plot(noise_mse, marker='o', markersize=8, linewidth=2, markerfacecolor='red') 
+                    plt.plot(noise_mse_inject, marker='o', markersize=8, linewidth=2, markerfacecolor='green')
+                    # # 添加标题和标签 
+                    plt.title('noise_delta between time steps') 
+                    # plt.ylim(0, 0.3)
+                    plt.xlabel('denoise time step')
+                    plt.ylabel('noise_delta')
+                    # plt.legend()
+                    file_path = './data/noise_delta'
+                    os.makedirs(file_path,  exist_ok=True)
+                    filename = os.path.join(file_path, f'noise_delta_ddim_10_{count}.png')
+                    plt.savefig(filename)
+                    plt.clf()
+                    # plt.savefig('fearture_delta_ddpm.png')
+                    plt.close() 
 
                 # device_transfer
                 np_action_dict = dict_apply(action_dict,
@@ -302,7 +330,13 @@ class RobomimicImageRunner(BaseImageRunner):
                     print(action)
                     raise RuntimeError("Nan or Inf action")
                 
+                # trajectory visualization
+                # taks_name = 'square_ph'
+                # file_path = f'./data/{taks_name}_eval_output/feature/'
+                # feature_visual_block(action[0], count, file_path, 'scatter')
+                
                 # step env
+                # pdb.set_trace()
                 env_action = action
                 if self.abs_action:
                     env_action = self.undo_transform_action(action)
@@ -311,6 +345,7 @@ class RobomimicImageRunner(BaseImageRunner):
                 done = np.all(done)
                 past_action = action
 
+                # done = True
                 # update pbar
                 pbar.update(action.shape[1])
             pbar.close()
@@ -350,6 +385,9 @@ class RobomimicImageRunner(BaseImageRunner):
             name = prefix+'mean_score'
             value = np.mean(value)
             log_data[name] = value
+            
+        log_data['inference_time'] = np.mean(time_list)
+        log_data['time_list'] = time_list
 
         return log_data
 
@@ -373,3 +411,17 @@ class RobomimicImageRunner(BaseImageRunner):
             uaction = uaction.reshape(*raw_shape[:-1], 14)
 
         return uaction
+
+def create_env(env_meta, shape_meta, enable_render=True):
+    modality_mapping = collections.defaultdict(list)
+    for key, attr in shape_meta['obs'].items():
+        modality_mapping[attr.get('type', 'low_dim')].append(key)
+    ObsUtils.initialize_obs_modality_mapping_from_dict(modality_mapping)
+
+    env = EnvUtils.create_env_from_metadata(
+        env_meta=env_meta,
+        render=False, 
+        render_offscreen=enable_render,
+        use_image_obs=enable_render, 
+    )
+    return env

@@ -82,6 +82,9 @@ class VideoRecorder:
             profile='high',
             **kwargs
         ):
+        
+        # print(crf) 
+        
         obj = cls(
             fps=fps,
             codec=codec,
@@ -135,7 +138,7 @@ class VideoRecorder:
             self.shape = img.shape
             self.dtype = img.dtype
             h,w,c = img.shape
-            self.stream.width = w
+            self.stream.width = w # *4
             self.stream.height = h
         assert img.shape == self.shape
         assert img.dtype == self.dtype

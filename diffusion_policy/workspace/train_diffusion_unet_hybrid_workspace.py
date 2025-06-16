@@ -19,6 +19,7 @@ import wandb
 import tqdm
 import numpy as np
 import shutil
+import time
 from diffusion_policy.workspace.base_workspace import BaseWorkspace
 from diffusion_policy.policy.diffusion_unet_hybrid_image_policy import DiffusionUnetHybridImagePolicy
 from diffusion_policy.dataset.base_dataset import BaseImageDataset
@@ -28,6 +29,7 @@ from diffusion_policy.common.json_logger import JsonLogger
 from diffusion_policy.common.pytorch_util import dict_apply, optimizer_to
 from diffusion_policy.model.diffusion.ema_model import EMAModel
 from diffusion_policy.model.common.lr_scheduler import get_scheduler
+from freq_encoder.freq_encoder_utils import visual_chart
 
 OmegaConf.register_new_resolver("eval", eval, replace=True)
 
@@ -60,10 +62,12 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
 
     def run(self):
         cfg = copy.deepcopy(self.cfg)
-
+        # print(self.cfg.training.resume)
+        
         # resume training
         if cfg.training.resume:
-            lastest_ckpt_path = self.get_checkpoint_path()
+            lastest_ckpt_path = self.get_checkpoint_path() 
+
             if lastest_ckpt_path.is_file():
                 print(f"Resuming from checkpoint {lastest_ckpt_path}")
                 self.load_checkpoint(path=lastest_ckpt_path)
@@ -139,7 +143,7 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
         train_sampling_batch = None
 
         if cfg.training.debug:
-            cfg.training.num_epochs = 2
+            cfg.training.num_epochs = 1 # 2
             cfg.training.max_train_steps = 3
             cfg.training.max_val_steps = 3
             cfg.training.rollout_every = 1
@@ -148,6 +152,8 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
             cfg.training.sample_every = 1
 
         # training loop
+        total_time = 0 
+        count = 0
         log_path = os.path.join(self.output_dir, 'logs.json.txt')
         with JsonLogger(log_path) as json_logger:
             for local_epoch_idx in range(cfg.training.num_epochs):
@@ -215,7 +221,6 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
                     runner_log = env_runner.run(policy)
                     # log all
                     step_log.update(runner_log)
-
                 # run validation
                 if (self.epoch % cfg.training.val_every) == 0:
                     with torch.no_grad():
@@ -233,7 +238,6 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
                             val_loss = torch.mean(torch.tensor(val_losses)).item()
                             # log epoch average validation loss
                             step_log['val_loss'] = val_loss
-
                 # run diffusion sampling on a training batch
                 if (self.epoch % cfg.training.sample_every) == 0:
                     with torch.no_grad():
@@ -242,10 +246,19 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
                         obs_dict = batch['obs']
                         gt_action = batch['action']
                         
-                        result = policy.predict_action(obs_dict)
+                        start_time = time.time()
+                        result = policy.faster_predict_action(obs_dict)
+                        t = time.time() - start_time
+                        result_origin = policy.predict_action(obs_dict)
+                        total_time += t
+                        count += 1
+
                         pred_action = result['action_pred']
+                        pred_action_o = result_origin['action_pred']
+                        
                         mse = torch.nn.functional.mse_loss(pred_action, gt_action)
                         step_log['train_action_mse_error'] = mse.item()
+                        step_log['o-faster_mse_error'] = torch.nn.functional.mse_loss(pred_action, pred_action_o).item()
                         del batch
                         del obs_dict
                         del gt_action
@@ -277,12 +290,15 @@ class TrainDiffusionUnetHybridWorkspace(BaseWorkspace):
                 # ========= eval end for this epoch ==========
                 policy.train()
 
+                average_inference_time = {'average_inference_time': total_time / count}
+                step_log.update(average_inference_time) 
                 # end of epoch
                 # log of last step is combined with validation and rollout
                 wandb_run.log(step_log, step=self.global_step)
                 json_logger.log(step_log)
                 self.global_step += 1
                 self.epoch += 1
+
 
 @hydra.main(
     version_base=None,

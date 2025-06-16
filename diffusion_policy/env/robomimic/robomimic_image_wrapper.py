@@ -23,6 +23,7 @@ class RobomimicImageWrapper(gym.Env):
         self.render_cache = None
         self.has_reset_before = False
         
+        # print(self.render_obs_key)
         # setup spaces
         action_shape = shape_meta['action']['shape']
         action_space = spaces.Box(

@@ -4,7 +4,7 @@ python eval.py --checkpoint data/image/pusht/diffusion_policy_cnn/train_0/checkp
 """
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import pdb
 import sys
 # use line-buffering for both stdout and stderr
@@ -23,9 +23,25 @@ import tqdm
 import itertools
 from torch.utils.data import DataLoader
 from diffusion_policy.workspace.base_workspace import BaseWorkspace
-from diffusion_policy.dataset.base_dataset import BaseImageDataset
+from diffusion_policy.dataset.base_dataset import BaseImageDataset, LinearNormalizer
 from diffusion_policy.common.pytorch_util import dict_apply
 from freq_encoder.para_correction import ParaCorrection
+# from consistency_policy.policy_wrapper import PolicyWrapper
+from consistency_policy.utils import get_policy
+
+NORMALIZER_PREFIX_LENGTH = 11
+MODEL_PREFIX_LENGTH = 6
+
+
+def load_normalizer(workspace_state_dict):
+    keys = workspace_state_dict['state_dicts']['model'].keys()
+    normalizer_keys = [key for key in keys if 'normalizer' in key]
+    normalizer_dict = {key[NORMALIZER_PREFIX_LENGTH:]: workspace_state_dict['state_dicts']['model'][key] for key in normalizer_keys}
+
+    normalizer = LinearNormalizer()
+    normalizer.load_state_dict(normalizer_dict)
+
+    return normalizer
 
 @click.command()
 @click.option('-c', '--checkpoint', required=True)
@@ -39,34 +55,29 @@ def main(checkpoint, output_dir, device):
     # load checkpoint
     payload = torch.load(open(checkpoint, 'rb'), pickle_module=dill) 
     cfg = payload['cfg']
-
     ParaCorrection(cfg, 
-                   step_num=10, 
+                   step_num=None, 
                    dataset_path =None,
                    batch_size = 64, 
-                   scheduler = "DDIM",
-                   n_envs=None)
-
-    # configure dataset
-    dataset: BaseImageDataset
-    dataset = hydra.utils.instantiate(cfg.task.dataset)
-    assert isinstance(dataset, BaseImageDataset)
-    train_dataloader = DataLoader(dataset, **cfg.dataloader)
-    normalizer = dataset.get_normalizer()
-
-    # configure validation dataset
-    val_dataset = dataset.get_validation_dataset()
-    val_dataloader = DataLoader(val_dataset, **cfg.val_dataloader)
+                   scheduler = None,
+                   n_envs=28)
+    
+    cfg.training.inference_mode = True
+    cfg.training.online_rollouts = False
 
     cls = hydra.utils.get_class(cfg._target_)
     workspace = cls(cfg, output_dir=output_dir)
     workspace: BaseWorkspace
-    workspace.load_payload(payload, exclude_keys=None, include_keys=None)
+    # workspace.load_payload(payload, exclude_keys=None, include_keys=None)
+    workspace.load_checkpoint(path=checkpoint, exclude_keys=['optimizer'])
+    workspace_state_dict = torch.load(checkpoint)
+    normalizer = load_normalizer(workspace_state_dict)
     
     # get policy from workspace
     policy = workspace.model
-    if cfg.training.use_ema:
-        policy = workspace.ema_model
+    policy.set_normalizer(normalizer)
+    # if cfg.training.use_ema:
+    #     policy = workspace.ema_model
     
     device = torch.device(device)
     policy.to(device)
@@ -80,7 +91,8 @@ def main(checkpoint, output_dir, device):
         cfg.task.env_runner,
         output_dir=output_dir)
     runner_log = env_runner.run(policy)
-    
+
+    # dump log to json
     json_log = dict()
             
     for key, value in runner_log.items():

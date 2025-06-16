@@ -6,6 +6,7 @@ import pathlib
 import tqdm
 import dill
 import math
+import time
 import logging
 import wandb.sdk.data_types.video as wv
 import gym
@@ -249,8 +250,14 @@ class KitchenLowdimRunner(BaseLowdimRunner):
 
                 # run policy
                 with torch.no_grad():
+                    start_time = time.time()
                     action_dict = policy.predict_action(obs_dict)
-
+                    # action_dict= policy.faster_encoder_predict_action(obs_dict) # encoder reuse
+                    # action_dict= policy.faster_edm_predict_action(obs_dict) # edm
+                    t_faster = time.time() - start_time
+                    total_time += t_faster
+                    count +=1
+                    
                 # device_transfer
                 np_action_dict = dict_apply(action_dict,
                     lambda x: x.detach().to('cpu').numpy())
@@ -315,5 +322,7 @@ class KitchenLowdimRunner(BaseLowdimRunner):
                 p_n = np.mean(n_completed >= n)
                 name = prefix + f'p_{n}'
                 log_data[name] = p_n
+                
+        log_data['inference_time'] = total_time / count
 
         return log_data

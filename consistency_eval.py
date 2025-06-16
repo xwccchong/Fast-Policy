@@ -19,13 +19,10 @@ import torch
 import dill
 import wandb
 import json
-import tqdm
-import itertools
-from torch.utils.data import DataLoader
 from diffusion_policy.workspace.base_workspace import BaseWorkspace
-from diffusion_policy.dataset.base_dataset import BaseImageDataset
-from diffusion_policy.common.pytorch_util import dict_apply
 from freq_encoder.para_correction import ParaCorrection
+# from consistency_policy.base_workspace import BaseWorkspace
+
 
 @click.command()
 @click.option('-c', '--checkpoint', required=True)
@@ -39,28 +36,22 @@ def main(checkpoint, output_dir, device):
     # load checkpoint
     payload = torch.load(open(checkpoint, 'rb'), pickle_module=dill) 
     cfg = payload['cfg']
-
+   
     ParaCorrection(cfg, 
-                   step_num=10, 
-                   dataset_path =None,
-                   batch_size = 64, 
-                   scheduler = "DDIM",
-                   n_envs=None)
-
-    # configure dataset
-    dataset: BaseImageDataset
-    dataset = hydra.utils.instantiate(cfg.task.dataset)
-    assert isinstance(dataset, BaseImageDataset)
-    train_dataloader = DataLoader(dataset, **cfg.dataloader)
-    normalizer = dataset.get_normalizer()
-
-    # configure validation dataset
-    val_dataset = dataset.get_validation_dataset()
-    val_dataloader = DataLoader(val_dataset, **cfg.val_dataloader)
-
+                step_num=8, 
+                dataset_path = None,
+                batch_size = 64, 
+                scheduler = "EDM",
+                n_envs=28 # pusht is None else 28 
+                )
+    
+    # edm bin 
+    # cfg.policy.noise_scheduler.bins = 8 
+    
     cls = hydra.utils.get_class(cfg._target_)
     workspace = cls(cfg, output_dir=output_dir)
     workspace: BaseWorkspace
+
     workspace.load_payload(payload, exclude_keys=None, include_keys=None)
     
     # get policy from workspace
@@ -81,8 +72,8 @@ def main(checkpoint, output_dir, device):
         output_dir=output_dir)
     runner_log = env_runner.run(policy)
     
+    # dump log to json
     json_log = dict()
-            
     for key, value in runner_log.items():
         if isinstance(value, wandb.sdk.data_types.video.Video):
             json_log[key] = value._path

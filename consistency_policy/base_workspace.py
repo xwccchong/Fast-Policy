@@ -74,15 +74,31 @@ class BaseWorkspace:
         print(self.output_dir)
         return pathlib.Path(self.output_dir).joinpath('checkpoints', f'{tag}.ckpt')
 
+    def _fix_state_dict_keys(self, state_dict):
+        """
+        修复 state_dict 键值前缀问题，例如移除 'module.' 前缀。
+        """
+        from collections import OrderedDict
+        fixed_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            if k.startswith("module."):
+                fixed_state_dict[k[7:]] = v  # 去掉 'module.' 前缀
+            else:
+                fixed_state_dict[k] = v
+        return fixed_state_dict
+    
     def load_payload(self, payload, exclude_keys=None, include_keys=None, **kwargs):
         if exclude_keys is None:
             exclude_keys = tuple()
         if include_keys is None:
             include_keys = payload['pickles'].keys()
 
+        # print(payload['state_dicts'].items())
         for key, value in payload['state_dicts'].items():
             if key not in exclude_keys:
-                self.__dict__[key].load_state_dict(value, **kwargs)
+                # 使用torch并行之后label变了，多了module.前缀，在此处去除
+                new_value = self._fix_state_dict_keys(value)
+                self.__dict__[key].load_state_dict(new_value, **kwargs)
         for key in include_keys:
             if key in payload['pickles']:
                 self.__dict__[key] = dill.loads(payload['pickles'][key])
