@@ -83,7 +83,7 @@ In the evaluation file list, each evaluation function corresponds to the followi
 - consistency_eval.py → Consistency Policy without student model
 - eval_cp.py → Consistency Policy with student model
 
-Our method only uses `eval.py` and `consistency_eval.py`. You can use Fast Policy for accelerated inference!
+Our method only uses `eval.py` and `consistency_eval.py`. You can now use Fast Policy for accelerated inference!
 ```console
 (faster_diffusion_policy)[./Fast-Policy] python eval.py --checkpoint <your/DP/ckpt/path> --output_dir <your/result/output/path> --device cuda:0
 (faster_diffusion_policy)[./Fast-Policy] python consistency_eval.py --checkpoint <your/CP w/o student model/ckpt/path> --output_dir <your/result/output/path> --device cuda:0
