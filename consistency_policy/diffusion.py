@@ -306,7 +306,7 @@ class Karras_Scheduler():
     def heun_solver(self, model, samples, t, next_t, clamp = False):
         dims = samples.ndim
         y = samples
-        step = append_dims((next_t - t), dims) # 维度对齐
+        step = append_dims((next_t - t), dims) 
         
         denoisedy = self.calc_out(model, y, t, clamp = clamp)
         dy = (y - denoisedy) / append_dims(t, dims)
