@@ -76,13 +76,13 @@ class BaseWorkspace:
 
     def _fix_state_dict_keys(self, state_dict):
         """
-        修复 state_dict 键值前缀问题，例如移除 'module.' 前缀。
+       Fix state_dict key value prefix issues, e.g. remove 'module.' prefix.
         """
         from collections import OrderedDict
         fixed_state_dict = OrderedDict()
         for k, v in state_dict.items():
             if k.startswith("module."):
-                fixed_state_dict[k[7:]] = v  # 去掉 'module.' 前缀
+                fixed_state_dict[k[7:]] = v  # remove 'module.' 
             else:
                 fixed_state_dict[k] = v
         return fixed_state_dict
@@ -93,10 +93,8 @@ class BaseWorkspace:
         if include_keys is None:
             include_keys = payload['pickles'].keys()
 
-        # print(payload['state_dicts'].items())
         for key, value in payload['state_dicts'].items():
             if key not in exclude_keys:
-                # 使用torch并行之后label变了，多了module.前缀，在此处去除
                 new_value = self._fix_state_dict_keys(value)
                 self.__dict__[key].load_state_dict(new_value, **kwargs)
         for key in include_keys:
