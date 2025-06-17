@@ -62,10 +62,6 @@ def seed_everything(seed):
 def warpped_global_feature(sample, step):
     b, dim = sample.shape # (B,input_dim)
     processed_batches = []
-    # sample_chunks = sample.chunk(b)
-    # for batch in sample_chunks:
-    #     batch = batch.repeat(step, 1)
-    #     processed_batches.append(batch)
     for _ in range(step):
         copy_sample = sample.repeat(1,1)
         processed_batches.append(copy_sample)
@@ -77,19 +73,8 @@ def warpped_feature(sample, step):
     sample: [ batch_size x out_channels x horizon ]
     step: timestep span
     """
-    # print(f"sample.shape:{sample.shape}")
-    # b, dim, T = sample.shape # (B,T,input_dim)
-    # uncond_fea, cond_fea = sample.chunk(2)
-    # uncond_fea = uncond_fea.repeat(step,1,1,1) # (step * bs//2) * dim * h *w
-    # cond_fea = cond_fea.repeat(step,1,1,1) # (step * bs//2) * dim * h *w
-    # return torch.cat([uncond_fea, cond_fea])
-    
     b, dim, T = sample.shape # (B,T,input_dim)
     processed_batches = []
-    # sample_chunks = sample.chunk(b)
-    # for batch in sample_chunks:
-    #     batch = batch.repeat(step, 1, 1)
-    #     processed_batches.append(batch)
     for _ in range(step):
         copy_sample = sample.repeat(1,1,1)
         processed_batches.append(copy_sample)
@@ -118,13 +103,13 @@ def warpped_timestep(timesteps, bs):
 
 def Fourier_filter(x, low_scale, high_scale, flag=False):
     if flag == True:
-        dtype = x.dtype # torch.float32
+        dtype = x.dtype 
         device = x.device
         x = x.type(torch.float32)
 
         # FFT
         x_freq = fft.fftn(x, dim=(-2, -1)) 
-        x_freq = fft.fftshift(x_freq, dim=(-2, -1)) # torch.Size([392, 2048, 4])
+        x_freq = fft.fftshift(x_freq, dim=(-2, -1)) 
         b, dim, T = x_freq.shape
         dim_center = dim //2 
         horizon_center = T //2 
@@ -140,11 +125,9 @@ def Fourier_filter(x, low_scale, high_scale, flag=False):
         
         magnitude = torch.abs(x_freq[0])
 
-        # 计算能量
         low_energy = torch.sum((magnitude[dim_center, horizon_center])**2)
         total_energy = torch.sum(magnitude**2)
 
-        # 打印能量占比
         high_energy = total_energy - low_energy 
         print(f"Low Frequency Energy : {low_energy}")
         print(f"High Frequency Energy : {high_energy}")
@@ -162,19 +145,19 @@ def Fourier_filter(x, low_scale, high_scale, flag=False):
         return x
     
 def Fourier_filter_visual(x, threshold, file_path, low_scale, high_scale, visual=False):
-    dtype = x.dtype # torch.float32
+    dtype = x.dtype 
     device = x.device
     x = x.type(torch.float32)
     # FFT
     x_freq = fft.fftn(x, dim=(-2, -1)) 
-    x_freq = fft.fftshift(x_freq, dim=(-2, -1)) # torch.Size([392, 2048, 4])
+    x_freq = fft.fftshift(x_freq, dim=(-2, -1)) 
     
     b, dim, T = x_freq.shape
     dim_center = dim //2 
     horizon_center = T //2 
     # whether visulization
     png_files = [f for f in os.listdir(file_path) if f.endswith('.png')]
-    if visual == True and len(png_files) < 16:  # edm:79
+    if visual == True and len(png_files) < 16: 
         magnitude = torch.abs(x_freq[0])
         # magnitude_real = torch.real(x_freq[0])+1
         magnitude_min = magnitude.min()
@@ -227,13 +210,6 @@ def Fourier_filter_visual(x, threshold, file_path, low_scale, high_scale, visual
 def visual_chart(feature_delta):
     cpu_feature_delta = [[tensor.cpu().numpy() for tensor in sublist] for sublist in feature_delta]
     block_name = ["encoder_block_resnet_1","encoder_block_resnet_2","encoder_block_resnet_3","mid_block_1","mid_block_2","decoder_block_resnet_1","decoder_block_resnet_2","final_conv"]
-    
-    # block_name_en = []
-    # block_name_de = []
-    # for i in range(len(cpu_feature_delta) // 2):
-    #     block_name_en.append(f"encoder_block_{i}")
-    #     block_name_de.append(f"decoder_block_{i}")
-    # block_name = block_name_en+block_name_de 
         
     plt.figure()
     for i, sub_list in enumerate(cpu_feature_delta):
