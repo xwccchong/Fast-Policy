@@ -132,7 +132,6 @@ class PushTImageRunner(BaseImageRunner):
         # env.reset(seed=env_seeds)
         # x = env.step(env.action_space.sample())
         # imgs = env.call('render')
-        # import pdb; pdb.set_trace()
 
         self.env = env
         self.env_fns = env_fns
@@ -164,7 +163,6 @@ class PushTImageRunner(BaseImageRunner):
         total_time = 0
         count = 0
         time_list = []
-        # pdb.set_trace()
         for chunk_idx in range(n_chunks):
             start = chunk_idx * n_envs
             end = min(n_inits, start + n_envs)
@@ -208,7 +206,7 @@ class PushTImageRunner(BaseImageRunner):
                 noise_mse_inject = []
                 with torch.no_grad():
                     start_time = time.time()
-                    # pdb.set_trace()
+                    
                     # action_dict= policy.predict_action(obs_dict) 
                     action_dict= policy.faster_encoder_predict_action(obs_dict) # encoder reuse
                     # action_dict= policy.faster_edm_predict_action(obs_dict) # edm
