@@ -53,7 +53,7 @@ The pretrained models used in the comparative experiments were trained under the
 
 2. If the installation process of the simulation environment is interrupted or fails, please reinstall it from scratch. Otherwise, missing library errors may occur during program execution.
 
-3. For setting up the MuJoCo environment, you can refer to:[Mujoco Installation]（https://github.com/Liujian1997/Franka_env-Installation/blob/main/Mujoco安装记录.md）or other websites.
+3. For setting up the MuJoCo environment, you can refer to:[Mujoco Installation]（https://zhuanlan.zhihu.com/p/486957504）or other websites.
 
 ## Trying Fast Policy
 ```console
