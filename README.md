@@ -40,6 +40,7 @@ The `conda_environment_macos.yaml` file is only for development on MacOS and doe
 
 **Note**: My environment was initially set up following the installation instructions of [Diffusion Policy](https://github.com/real-stanford/diffusion_policy), and then I additionally installed the required libraries based on the `requirements.txt` from [Faster Diffusion](https://github.com/hutaiHang/Faster-Diffusion). I had provided my `requirements.txt` for reference, so that the dependency libraries can be properly aligned.
 ```console
+(base)[./Fast-Policy]conda activate faster_diffusion_policy
 (faster_diffusion_policy)[./Fast-Policy]pip install -r requirements.txt
 ```
 
