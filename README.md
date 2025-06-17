@@ -12,7 +12,7 @@
 Fast Policy (termed FP), a **train-free** method, which can be regarded as a powerful and accelerated alternative to Diffusion Policy for learning visuomotor robot control. Specifically, our comprehensive study of UNet encoder shows that its features change little during inference, prompting us to reuse encoder features in non-critical denoising steps. In addition, we design strategies based on Fourier energy to screen critical and non-critical steps dynamically according to different tasks. Importantly, to mitigate performance degradation caused by the repeated use of non-critical steps, we also introduce a noise correction strategy. Our FP is evaluated on multiple simulation benchmarks and the comparison results with existing speed-up methods demonstrate the effectiveness and superiority of FP with state-of-the-art success rates in visuomotor inference speed.
 
 ## Installation
-Our work is built upon [Diffusion Policy](https://github.com/real-stanford/diffusion_policy) and Consistency Policy, so the environment setup follows the installation procedure of Diffusion Policy. Our operating system is Ubuntu 20.04.
+Our work is built upon [Diffusion Policy](https://github.com/real-stanford/diffusion_policy) and [Consistency Policy](https://github.com/Aaditya-Prasad/consistency-policy), so the environment setup follows the installation procedure of Diffusion Policy. Our operating system is Ubuntu 20.04.
 Please first clone the project to  local:
 ```console
 $ mamba env create -f conda_environment.yaml
