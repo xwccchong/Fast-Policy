@@ -92,7 +92,7 @@ Our method only uses `eval.py` and `consistency_eval.py`. You can use Fast Polic
 ```
 
 ## Real experiment
-The real experiment will be released together with the project homepage of the paper.
+The real experiment will be released together with the project page of the paper.
 
 ## License
 This repository is released under the MIT license. See [LICENSE](LICENSE) for additional details.
