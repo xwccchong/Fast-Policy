@@ -21,7 +21,7 @@ from diffusion_policy.model.common.rotation_transformer import RotationTransform
 from diffusion_policy.policy.base_image_policy import BaseImagePolicy
 from diffusion_policy.common.pytorch_util import dict_apply
 from diffusion_policy.env_runner.base_image_runner import BaseImageRunner
-from diffusion_policy.env.robomimic.robomimic_image_wrapper import RobomimicImageWrapper # 这个库引用出问题了
+from diffusion_policy.env.robomimic.robomimic_image_wrapper import RobomimicImageWrapper 
 import robomimic.utils.file_utils as FileUtils
 import robomimic.utils.env_utils as EnvUtils
 import robomimic.utils.obs_utils as ObsUtils
