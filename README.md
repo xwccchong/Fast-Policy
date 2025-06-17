@@ -40,8 +40,8 @@ The `conda_environment_macos.yaml` file is only for development on MacOS and doe
 
 **Note**: My environment was initially set up following the installation instructions of [Diffusion Policy](https://github.com/real-stanford/diffusion_policy), and then I additionally installed the required libraries based on the `requirements.txt` from [Faster Diffusion](https://github.com/hutaiHang/Faster-Diffusion). I had provided my `requirements.txt` for reference, so that the dependency libraries can be properly aligned.
 ```console
-(base)[./Fast-Policy]conda activate faster_diffusion_policy
-(faster_diffusion_policy)[./Fast-Policy]pip install -r requirements.txt
+(base)[./Fast-Policy] conda activate faster_diffusion_policy
+(faster_diffusion_policy)[./Fast-Policy] pip install -r requirements.txt
 ```
 
 The pretrained models used in the comparative experiments were trained under the original environments of [Diffusion Policy](https://github.com/real-stanford/diffusion_policy) and [Consistency Policy](https://github.com/Aaditya-Prasad/consistency-policy).
@@ -63,12 +63,12 @@ The pretrained models used in the comparative experiments were trained under the
 
 First, modify the relevant parameters and dataset paths in the corresponding folders to ensure that the dataset can be loaded correctly.
 ```console
-(faster_diffusion_policy)[./Fast-Policy/diffusion_policy/config/task_cfg/square/square_mh.yaml]dataset_path: <your/dataset/path>
+(faster_diffusion_policy)[./Fast-Policy/diffusion_policy/config/task_cfg/square/square_mh.yaml] dataset_path: <your/dataset/path>
 ```
 
 Once you have obtained the pretrained model for a specific task, you can extract the key steps using the instructions provided below.
 ```console
-(faster_diffusion_policy)[./Fast-Policy/net_feature_analyse]python eval.py --checkpoint <your/ckpt/path> --output_dir <your/result/output/path> --device cuda:0
+(faster_diffusion_policy)[./Fast-Policy/net_feature_analyse] python eval.py --checkpoint <your/ckpt/path> --output_dir <your/result/output/path> --device cuda:0
 ```
 
 **Note**: In `eval.py`, I used `os.environ["CUDA_VISIBLE_DEVICES"] = "1"` to restrict the visible GPU. If you are using a single GPU, please do not modify `--device cuda:0`, as the designated GPU index will be 0.If you wish to apply our method to other network architectures, you will need to recalculate the weights based on the energy evaluation results in the code before extracting the key steps again.
@@ -77,7 +77,7 @@ After obtaining the key steps corresponding to the pretrained model, you should 
 
 Then, modify the following function call in the corresponding evaluation script:
 ```console
-(faster_diffusion_policy)[./Fast-Policy/eval.py]ParaCorrection(cfg, step_num=10, dataset_path=None, batch_size=64, scheduler="DDIM", n_envs=None)
+(faster_diffusion_policy)[./Fast-Policy/eval.py] ParaCorrection(cfg, step_num=10, dataset_path=None, batch_size=64, scheduler="DDIM", n_envs=None)
 ```
 
 In the evaluation file list, each evaluation function corresponds to the following settings:
@@ -87,8 +87,8 @@ In the evaluation file list, each evaluation function corresponds to the followi
 
 Our method only uses `eval.py` and `consistency_eval.py`. You can use Fast Policy for accelerated inference!
 ```console
-(faster_diffusion_policy)[./Fast-Policy]python eval.py --checkpoint <your/DP/ckpt/path> --output_dir <your/result/output/path> --device cuda:0
-(faster_diffusion_policy)[./Fast-Policy]python consistency_eval.py --checkpoint <your/CP w/o student model/ckpt/path> --output_dir <your/result/output/path> --device cuda:0
+(faster_diffusion_policy)[./Fast-Policy] python eval.py --checkpoint <your/DP/ckpt/path> --output_dir <your/result/output/path> --device cuda:0
+(faster_diffusion_policy)[./Fast-Policy] python consistency_eval.py --checkpoint <your/CP w/o student model/ckpt/path> --output_dir <your/result/output/path> --device cuda:0
 ```
 
 ## Real experiment
