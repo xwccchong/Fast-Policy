@@ -293,9 +293,9 @@ class RobomimicImageRunner(BaseImageRunner):
                 noise_mse_inject = []
                 with torch.no_grad():
                     start_time = time.time()
-                    action_dict= policy.predict_action(obs_dict) 
+                    # action_dict= policy.predict_action(obs_dict) 
                     # action_dict= policy.faster_encoder_predict_action(obs_dict) # encoder reuse
-                    # action_dict= policy.faster_edm_predict_action(obs_dict) # edm 
+                    action_dict= policy.faster_edm_predict_action(obs_dict) # edm 
                     t_faster = time.time() - start_time
                     time_list.append(t_faster)
                     total_time += t_faster
@@ -304,10 +304,8 @@ class RobomimicImageRunner(BaseImageRunner):
                 if len(noise_mse) != 0 and len(noise_mse_inject) != 0:
                     plt.figure()
                     plt.grid(True)
-                    # 创建直方图 
                     plt.plot(noise_mse, marker='o', markersize=8, linewidth=2, markerfacecolor='red') 
                     plt.plot(noise_mse_inject, marker='o', markersize=8, linewidth=2, markerfacecolor='green')
-                    # # 添加标题和标签 
                     plt.title('noise_delta between time steps') 
                     # plt.ylim(0, 0.3)
                     plt.xlabel('denoise time step')
@@ -336,7 +334,6 @@ class RobomimicImageRunner(BaseImageRunner):
                 # feature_visual_block(action[0], count, file_path, 'scatter')
                 
                 # step env
-                # pdb.set_trace()
                 env_action = action
                 if self.abs_action:
                     env_action = self.undo_transform_action(action)
