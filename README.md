@@ -73,9 +73,7 @@ Once you have obtained the pretrained model for a specific task, you can extract
 
 **Note**: In `eval.py`, I used `os.environ["CUDA_VISIBLE_DEVICES"] = "1"` to restrict the visible GPU. If you are using a single GPU, please do not modify `--device cuda:0`, as the designated GPU index will be 0.If you wish to apply our method to other network architectures, you will need to recalculate the weights based on the energy evaluation results in the code before extracting the key steps again.
 
-After obtaining the key steps corresponding to the pretrained model, you should modify the key steps in `[./Fast-Policy/freq_encoder/freq_encoder_utils.py]` and `./Fast-Policy/diffusion_policy/policy/diffusion_unet_hybrid_image_policy.py`, then start using Fast Policy for accelerated inference!
-
-Then, modify the following function call in the corresponding evaluation script:
+After obtaining the key steps corresponding to the pretrained model, you should modify the key steps in `[./Fast-Policy/freq_encoder/freq_encoder_utils.py]` and `./Fast-Policy/diffusion_policy/policy/diffusion_unet_hybrid_image_policy.py`, then, modify the following function call in the corresponding evaluation script:
 ```console
 (faster_diffusion_policy)[./Fast-Policy/eval.py] ParaCorrection(cfg, step_num=10, dataset_path=None, batch_size=64, scheduler="DDIM", n_envs=None)
 ```
