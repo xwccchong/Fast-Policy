@@ -485,9 +485,6 @@ class DiffusionUnetHybridImagePolicy(BaseImagePolicy):
         # apply conditioning
         noisy_trajectory[condition_mask] = cond_data[condition_mask]
         
-        # change model
-        freeu_register_normal_forward(self.model, e1=1, e2=1, b=1)
-        
         # Predict the noise residual
         pred = self.model(noisy_trajectory, timesteps, 
             local_cond=local_cond, global_cond=global_cond)
